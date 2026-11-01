@@ -6,6 +6,9 @@ if(!args.includes('--session')||!path.isAbsolute(statePath))throw Error('An abso
 const session=JSON.parse(fs.readFileSync(statePath,'utf8').replace(/^\uFEFF/,'')),port=Number(session.port);
 if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Invalid port');
 const log=event=>console.log(JSON.stringify({time:new Date().toISOString(),...event}));
+const readyFile=args.includes('--ready-file')?value('--ready-file'):null;
+if(readyFile && (!path.isAbsolute(readyFile) || path.dirname(path.dirname(readyFile))!==path.dirname(statePath) || !/^startup-[a-f0-9]{32}$/.test(path.basename(path.dirname(readyFile))) || path.basename(readyFile)!=='theme-ready'))throw Error('Invalid startup handshake path');
+let readyReported=false,launchPreferences=null;
 let anchor,stopped=false,payload;
 function bundle(){
  if(payload)return payload;
@@ -17,7 +20,16 @@ async function install(target){
  try{
   if(args.includes('--restore')){await c.call('Runtime.evaluate',{expression:'window.__ccMoonlight?.destroy()',returnByValue:true});return;}
   const status=await c.call('Runtime.evaluate',{expression:'window.__ccMoonlight?.status()',returnByValue:true});
-  if(status.result?.value?.installed)return status.result.value;
+  if(status.result?.value?.installed){
+   const preferences=await c.call('Runtime.evaluate',{expression:'(()=>{let p={};try{p=JSON.parse(localStorage.getItem("cc-moonlight-prefs-v1")||"{}")}catch{}return {intro:p.intro!==false,reducedMotion:matchMedia("(prefers-reduced-motion: reduce)").matches}})()',returnByValue:true});
+   const serialized=JSON.stringify(preferences.result?.value);
+   if(serialized&&serialized!==launchPreferences){fs.writeFileSync(path.join(path.dirname(statePath),'launch-preferences.json'),serialized);launchPreferences=serialized;}
+   if(readyFile&&!readyReported){
+    const ready=await c.call('Runtime.evaluate',{expression:'(async()=>{const s=window.__ccMoonlight?.status();const images=[...document.querySelectorAll("#cc-wallpaper img")];if(!s?.main||!s?.editor||images.length<2||images.some(i=>!i.complete||!i.naturalWidth))return false;await Promise.all(images.map(i=>i.decode()));return true})()',awaitPromise:true,returnByValue:true});
+    if(ready.result?.value===true){fs.writeFileSync(readyFile,'ready');readyReported=true;log({event:'startup-theme-ready'});}
+   }
+   return status.result.value;
+  }
   const ready=await c.call('Runtime.evaluate',{expression:'Boolean(document.body && document.querySelector("main") && document.querySelector(".app-shell-left-panel,[data-codex-composer]"))',returnByValue:true});
   if(!ready.result?.value)return {waiting:true};
   const expression=fs.readFileSync(path.join(__dirname,'runtime/install.js'),'utf8')+'('+JSON.stringify(bundle())+')';

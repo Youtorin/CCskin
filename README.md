@@ -2,7 +2,7 @@
 
 银白与淡紫配色的 Windows Codex / ChatGPT 桌面主题扩展，包含龙娘立绘、动态伴宠、星辉动效和视频片头。
 
-当前版本 **1.1.0**。已有安装的用户请完整解压更新 ZIP，保存主题窗口的草稿后，从解压目录双击 **`Update.cmd`**；更新会关闭并重开主题实例，保留 profile 与偏好设置。[本版变更](docs/CHANGELOG.md)。
+当前版本 **1.2.0**。已有安装的用户请完整解压更新 ZIP，保存主题窗口的草稿后，从解压目录双击 **`Update.cmd`**；更新会关闭并重开主题实例，保留 profile 与偏好设置。[本版变更](docs/CHANGELOG.md)。
 
 已知限制：用户实测窗口还原/缩小已正常，最大化仍有残余抖动；本版未宣称完全解决。详见 [1.1 验证记录](docs/VALIDATION-v1.1.json)。
 
@@ -19,7 +19,7 @@
 - 极光、旋转法阵、星尘、鼠标辉光、点击粒子；静谧、轻盈、华丽三档。
 - 专注模式隐藏背景和伴宠并暂停氛围动效；支持系统减少动态效果偏好。
 - `voira-chatgpt` v2 动画伴宠：待机、悬停挥手、点击跳跃。
-- 8 秒启动视频，可跳过；窗口隐藏时等待可见后播放。
+- 8 秒启动视频先于客户端显示。独立启动遮罩覆盖桌面，客户端在遮罩后加载；动画结束且主题主界面与背景图片就绪后才交接。跳过动画仍等待主题就绪。
 - 设置保存于主题实例中；原生页面重新加载后，引擎重新加载主题。
 - 设置入口位于主内容区左上方，避开侧栏底部的个人账户入口。
 
@@ -60,7 +60,17 @@
 
 主题窗口使用独立目录 `%LOCALAPPDATA%\CCMoonlight\profile`，不会复制原窗口的登录凭据。若客户端要求登录，请正常登录。账号服务行为由官方客户端负责。
 
-运行状态为 `%LOCALAPPDATA%\CCMoonlight\session.json`，日志为同目录的 `engine.log` 和 `engine-error.log`。这些本机文件不应提交到 Git。提示实例已运行时，使用已有窗口或先恢复再启动。从官方图标启动的窗口不会自动加载本主题。
+运行状态为 `%LOCALAPPDATA%\CCMoonlight\session.json`，日志为同目录的 `engine.log` 和 `engine-error.log`。这些本机文件不应提交到 Git。重复打开快捷方式时，启动器按独立 profile 查找现有实例，尝试唤回窗口；只有后台进程时向同一 profile 请求窗口，不再把正常的重复启动当作错误。过期 session PID 会重新核对并修正。从官方图标启动的窗口不会自动加载本主题。
+
+### 启动动画与交接
+
+启动遮罩是独立 WPF 窗口，不修改或替换官方程序内部的启动页。遮罩覆盖整个虚拟桌面（多屏时也会暂时遮住其他屏幕），避免原生窗口的初始位置或恢复位置露出加载过程。动画结束后若客户端尚未就绪，会继续显示等待画面。
+
+正常交接要求主题主界面、编辑器和两张背景图片均已加载并解码；出现登录页、加载异常或超过 65 秒时会释放遮罩，让用户处理原生界面，不无限阻挡桌面。`Escape` 或「跳过动画」只跳过视频；关闭遮罩窗口可提前退出遮罩。
+
+启动动画偏好及系统减少动态效果偏好由运行中的主题引擎同步到本机 `launch-preferences.json`，下次启动生效；首次启动默认播放。手动使用 `Start-Moonlight.ps1 -NoIntro` 可跳过。设置面板中的视频重播仍可使用。重复打开运行中的实例不播放动画。
+
+已验证独立 WPF 视频播放和正常关闭、模拟系统边界下的启动器分支、主题图片就绪信号。尚需在实际冷启动中确认官方窗口首次绘制及焦点交接；这不是原生启动页已被替换的保证。
 
 ### 恢复、更新与卸载
 
@@ -81,7 +91,8 @@
 ## 目录与开发
 
 ```text
-Start.cmd / Start-Moonlight.ps1       启动主题实例与后台引擎
+Start.cmd / Start-Moonlight.ps1       启动或复用主题实例与后台引擎
+Splash-Moonlight.ps1                 独立视频遮罩与就绪交接
 Install.cmd / Install-Moonlight.ps1   安装及创建快捷方式
 Restore.cmd / Restore-Moonlight.ps1   恢复并关闭主题实例
 Install-Pet.ps1                      可选的原生宠物安装
@@ -103,6 +114,8 @@ THIRD-PARTY.md                       素材来源及许可状态
 node scripts/checksums.cjs
 node scripts/check.cjs
 node tests/endpoints.cjs
+node tests/startup.cjs
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tests/launcher.ps1
 ```
 
 PowerShell 入口仍应在 Windows 上进行语法和实际启动/恢复验证。`VALIDATION.json` 是既有版本的测试记录；静态命令不会重跑视频等交互验证，也不代表已覆盖所有设置页、弹窗和终端布局。

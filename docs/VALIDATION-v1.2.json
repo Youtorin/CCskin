@@ -1,0 +1,16 @@
+{
+  "version": "1.2.0",
+  "checks": {
+    "launcherMockRegression": "passed: stale PID, existing instance/engine reuse, windowless singleton request, missing engine, listener rejection, fresh launch",
+    "startupReadiness": "passed: no signal before images ready; signal after readiness",
+    "standaloneWpfVideo": "passed: visible, media opened, video done, closed; failed=false; timedOut=false",
+    "syntaxAndChecksums": "passed",
+    "nativeColdStart": "not verified",
+    "nativeForegroundHandoff": "not verified"
+  },
+  "limits": [
+    "Mock launcher tests do not operate the native client.",
+    "Standalone WPF playback does not prove no native first-frame flash.",
+    "Maximize jitter remains a known unresolved issue from version 1.1."
+  ]
+}
