@@ -2,9 +2,6 @@ html[data-cc-theme]{--color-token-bg-primary:var(--cc-bg);--color-token-bg-secon
 html[data-cc-theme=light]{--cc-bg:#faf9fd;--cc-side:#f0edf5;--cc-ink:#302c40;--cc-muted:#827b92;--cc-accent:#8b71b6;--cc-line:#a38cbd30;--cc-panel:255,255,255;--cc-shade:250,249,253}
 html[data-cc-theme=night]{--cc-bg:#211c2b;--cc-side:#272132;--cc-ink:#eee8f5;--cc-muted:#b4a6c6;--cc-accent:#b69ad8;--cc-line:#bca2d830;--cc-panel:40,33,53;--cc-shade:33,28,43}
 html[data-cc-theme] .app-shell-left-panel,html[data-cc-theme] .app-shell-left-panel nav{background:var(--cc-side)!important}
-html[data-cc-theme] [data-cc-surface]{background-blend-mode:normal,multiply!important}
-html[data-cc-theme] [data-cc-surface]{background-color:var(--cc-bg)!important;background-image:linear-gradient(90deg,rgba(var(--cc-shade),.98) 0%,rgba(var(--cc-shade),.87) 35%,rgba(var(--cc-shade),.30) 70%,rgba(var(--cc-shade),.12)),var(--cc-home-image)!important;background-position:center,right center!important;background-size:cover,auto 100%!important;background-repeat:no-repeat!important}
-html[data-cc-theme][data-cc-view=chat] [data-cc-surface]{background-image:linear-gradient(90deg,rgba(var(--cc-shade),.94),rgba(var(--cc-shade),.74) 40%,rgba(var(--cc-shade),.40) 70%,rgba(var(--cc-shade),.10)),var(--cc-chat-image)!important;background-size:cover,cover!important;background-position:center,65% center!important}
 html[data-cc-theme] [data-cc-surface] [class*="_WorkspaceContent_"],html[data-cc-theme] [data-cc-surface] [role=main],html[data-cc-theme] [data-cc-surface] [class~="bg-surface-primary"],html[data-cc-theme] [data-cc-surface] [class~="bg-token-bg-primary"],html[data-cc-theme] [data-cc-surface] [class~="bg-composer-primary"]{background:transparent!important}
 html[data-cc-theme] [data-composer-surface-variant]{background:rgba(var(--cc-panel),var(--cc-panel-alpha,.18))!important;border:1px solid var(--cc-line)!important;border-radius:18px!important;box-shadow:0 7px 32px #60437a0a!important;backdrop-filter:none!important;transition:border-color .25s,box-shadow .25s}
 html[data-cc-theme] [data-composer-surface-variant]:focus-within{border-color:#ad91ce99!important;box-shadow:0 0 0 2px #b49dd91a,0 0 26px #a28ac127!important}
@@ -14,9 +11,24 @@ html[data-cc-theme][data-cc-focus=true] [data-cc-surface],html[data-cc-theme][da
 html[data-cc-theme][data-cc-focus=true] [data-composer-surface-variant],html[data-cc-theme][data-cc-focus=true] [data-cc-code]{background:var(--cc-bg)!important}
 @media(prefers-reduced-motion:reduce){html[data-cc-theme] [data-composer-surface-variant]{transition:none}}
 /* Fade the actual image boundary rather than a fixed viewport percentage. */
-html[data-cc-theme] [data-cc-surface]{position:relative;isolation:isolate;background-image:none!important}
+html[data-cc-theme] [data-cc-surface]{position:relative;isolation:isolate;background-color:var(--cc-bg)!important;background-image:none!important}
 #cc-wallpaper{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
-#cc-wallpaper img{position:absolute;top:0;right:0;height:100%;width:auto;max-width:70%;object-fit:contain;object-position:right center;mix-blend-mode:multiply;opacity:.84;mask-image:linear-gradient(to right,transparent 0%,#000 25%);-webkit-mask-image:linear-gradient(to right,transparent 0%,#000 25%)}
-html[data-cc-view=chat] #cc-wallpaper img{width:100%;max-width:none;object-fit:cover;object-position:65% center;opacity:.8;mask-image:linear-gradient(to right,transparent,#000 90%);-webkit-mask-image:linear-gradient(to right,transparent,#000 90%)}
+html[data-cc-theme][data-slate-sidebar-peeking=true],html[data-cc-theme]:has([data-slate-sidebar-peeking=true]){--cc-toolbar-visibility:hidden}
+/* Match the Windows application menu area to the canvas, then fade artwork into it. */
+html[data-cc-theme],html[data-cc-theme] body,html[data-cc-theme] [class*="_ApplicationMenuTopBar_"],html[data-cc-theme] [class*="_PageSurfaceLayout_"]{background-color:var(--cc-bg)!important}
+#cc-wallpaper img{position:absolute;top:0;right:0;height:100%;width:auto;max-width:70%;object-fit:contain;object-position:right center;mix-blend-mode:multiply;opacity:.84;mask-image:linear-gradient(to right,transparent 0%,#000 25%);transition:none!important}
+#cc-wallpaper img[data-view=chat]{width:100%;height:100%;max-width:none;object-fit:cover;object-position:65% center;opacity:.8;mask-image:linear-gradient(to right,transparent,#000 90%)}
+html[data-cc-view=home] #cc-wallpaper img[data-view=chat],html[data-cc-view=chat] #cc-wallpaper img[data-view=home]{display:none}
 html[data-cc-theme=night] #cc-wallpaper img{mix-blend-mode:screen;opacity:.18}
 html:not([data-cc-theme]) #cc-wallpaper,html[data-cc-focus=true] #cc-wallpaper,html[data-cc-art=false] #cc-wallpaper{display:none}
+
+/* Keep the native shell seam neutral and its drag target usable. */
+html[data-cc-theme]{--app-shell-sidebar-divider:transparent;--app-shell-page-surface-shadow:none}
+html[data-cc-theme] [class*="_MainContentLeftBorder_"]{border-left:0!important;box-shadow:none!important}
+html[data-cc-theme] .sidebar-resize-handle-line{opacity:0!important;transition:none!important}
+html[data-cc-theme] .app-shell-left-panel [role=separator]:focus-visible .sidebar-resize-handle-line{opacity:.5!important;background:var(--cc-muted)!important}
+html[data-cc-theme] [class*="_MainContentClip_"],html[data-cc-theme] [data-cc-surface],html[data-cc-theme] #cc-wallpaper{transition:none!important}
+html[data-cc-theme] [class*="_ApplicationMenuPageHeader_"],html[data-cc-theme] [class*="_MainTitlebar_"]{background:transparent!important;box-shadow:none!important;border-bottom-color:transparent!important;backdrop-filter:none!important}
+html[data-cc-theme] [class*="_ApplicationMenuPageHeader_"] [class*="bg-surface"],html[data-cc-theme] [class*="_ApplicationMenuPageHeader_"] [class*="backdrop-blur"]{background:transparent!important;backdrop-filter:none!important}
+/* The native white scroll fade begins below the toolbar and creates a hard seam. */
+html[data-cc-theme] [class*="_MainContentTopFade_"]{background:none!important;backdrop-filter:none!important}

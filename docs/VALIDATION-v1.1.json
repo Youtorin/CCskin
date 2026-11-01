@@ -1,0 +1,35 @@
+{
+  "version": "1.1.0",
+  "client": "26.1027.3384.0",
+  "checks": [
+    {
+      "name": "toolbar-left-and-top-gap-18px",
+      "pass": true
+    },
+    {
+      "name": "sidebar-native-border-removed",
+      "pass": true
+    },
+    {
+      "name": "native-header-fade-removed",
+      "pass": true
+    },
+    {
+      "name": "wallpaper-no-resize-opacity-transition",
+      "pass": true
+    },
+    {
+      "name": "sidebar-peek-hides-controls-style-contract",
+      "pass": true
+    }
+  ],
+  "manualFeedback": {
+    "restore": "User reports no abnormality after CSS sizing change",
+    "maximize": "User reports residual jitter; unresolved"
+  },
+  "limits": [
+    "Native maximize/restore animation was checked manually by the user, not automated.",
+    "The cause of residual maximize jitter is not proven.",
+    "Viewport emulation did not reliably change native layout dimensions; it is not used as evidence of a complete resize fix."
+  ]
+}
