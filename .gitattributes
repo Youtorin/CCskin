@@ -1,0 +1,5 @@
+# Preserve exact bytes, including PowerShell BOMs, for SHA256SUMS.txt.
+* -text
+*.png binary
+*.webp binary
+*.mp4 binary

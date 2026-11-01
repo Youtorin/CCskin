@@ -1,0 +1,79 @@
+{
+  "testedVersion": "26.1027.3384.0",
+  "time": "2026-11-01T18:46:10.793Z",
+  "checks": [
+    {
+      "name": "dark",
+      "pass": true
+    },
+    {
+      "name": "opaque",
+      "pass": true
+    },
+    {
+      "name": "motionOff",
+      "pass": true
+    },
+    {
+      "name": "focus",
+      "pass": true
+    },
+    {
+      "name": "transparency",
+      "pass": true
+    },
+    {
+      "name": "pause",
+      "pass": true
+    },
+    {
+      "name": "resume",
+      "pass": true
+    },
+    {
+      "name": "nativeEditorPreserved",
+      "pass": true
+    },
+    {
+      "name": "toolbarOutsideSidebar",
+      "pass": true
+    },
+    {
+      "name": "wallpaperMask",
+      "pass": true
+    },
+    {
+      "name": "video-playback",
+      "pass": true,
+      "time": 2.1713,
+      "error": null,
+      "playing": true,
+      "ready": 4,
+      "muted": true,
+      "hidden": false
+    },
+    {
+      "name": "video-exit-restores-interaction",
+      "pass": true
+    },
+    {
+      "name": "official-package-launch-windows-powershell-5.1",
+      "pass": true
+    },
+    {
+      "name": "restore-closes-window-and-releases-debug-port",
+      "pass": true
+    },
+    {
+      "name": "endpoint-identity",
+      "pass": true,
+      "accepted": 1,
+      "rejected": 7
+    }
+  ],
+  "notes": [
+    "Tests used an independent profile; original instance was preserved.",
+    "Native editor DOM identity was checked; no test messages were submitted.",
+    "Other client versions and every native modal/terminal layout have not been exhaustively tested."
+  ]
+}

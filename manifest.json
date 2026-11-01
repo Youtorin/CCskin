@@ -1,0 +1,12 @@
+{
+  "name": "CC Moonlight",
+  "displayName": "月白龙语 · 星辉",
+  "version": "1.0.0",
+  "type": "external-desktop-theme",
+  "platform": "windows-x64",
+  "testedAppVersion": "26.1027.3384.0",
+  "requires": { "node": ">=22", "appPackage": "OpenAI.Codex" },
+  "entry": "Start-Moonlight.ps1",
+  "restore": "Restore-Moonlight.ps1",
+  "runtime": "runtime/install.js"
+}

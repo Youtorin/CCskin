@@ -1,0 +1,22 @@
+# Local state, credentials and browser profiles
+profile/
+*-profile/
+session.json
+*-state.json
+*.log
+.env
+.env.*
+!.env.example
+auth.json
+config.toml
+*.pem
+*.key
+# Development scratch and packaged outputs
+work/
+outputs/
+dist/
+node_modules/
+*.zip
+*.lnk
+Thumbs.db
+.DS_Store
