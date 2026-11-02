@@ -26,7 +26,7 @@ $null=Get-Command node.exe -ErrorAction Stop
 $profile=Join-Path $stateRoot 'profile'
 $running=@(Get-CimInstance Win32_Process -Filter "Name='ChatGPT.exe'" | Where-Object {$_.CommandLine -and $_.CommandLine.Contains($profile)})
 if($running.Count){throw 'Close the themed instance before repairing installation files.'}
-$payload=@('assets','lib','runtime','demo','docs','scripts','tests','engine.cjs','manifest.json','README.md','THIRD-PARTY.md','VALIDATION.json','SHA256SUMS.txt','Start.cmd','Restore.cmd','Install.cmd','Repair.cmd','Update.cmd','Start-Moonlight.ps1','Splash-Moonlight.ps1','Restore-Moonlight.ps1','Install-Moonlight.ps1','Install-Pet.ps1')
+$payload=@('assets','lib','runtime','demo','docs','scripts','tests','engine.cjs','manifest.json','README.md','THIRD-PARTY.md','VALIDATION.json','SHA256SUMS.txt','Start.cmd','Restore.cmd','Install.cmd','Repair.cmd','Update.cmd','Start-Moonlight.ps1','Splash-Moonlight.ps1','Watch-Moonlight.ps1','Restore-Moonlight.ps1','Install-Moonlight.ps1','Install-Pet.ps1')
 foreach($file in $payload){if(-not(Test-Path -LiteralPath (Join-Path $source $file))){throw "Missing installation file: $file"}}
 New-Item -ItemType Directory -Force -Path $target | Out-Null
 foreach($file in $payload){Copy-Item -LiteralPath (Join-Path $source $file) -Destination $target -Recurse -Force}

@@ -1,10 +1,10 @@
 {
   "name": "CC Moonlight",
   "displayName": "月白龙语 · 星辉",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "external-desktop-theme",
   "platform": "windows-x64",
-  "testedAppVersion": "26.1027.3384.0",
+  "testedAppVersion": "26.1027.6604.0",
   "requires": {
     "node": ">=22",
     "appPackage": "OpenAI.Codex"

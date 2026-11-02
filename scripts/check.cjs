@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const {execFileSync} = require('node:child_process');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
-for (const file of ['engine.cjs', 'lib/cdp.cjs', 'runtime/install.js', 'tests/endpoints.cjs', 'tests/startup.cjs', 'scripts/check.cjs', 'scripts/checksums.cjs']) {
+for (const file of ['engine.cjs', 'lib/cdp.cjs', 'runtime/install.js', 'tests/endpoints.cjs', 'tests/startup.cjs', 'tests/sidebar.cjs', 'scripts/check.cjs', 'scripts/checksums.cjs']) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], {stdio: 'inherit'});
 }
 const html = fs.readFileSync(path.join(root, 'demo/index.html'), 'utf8');

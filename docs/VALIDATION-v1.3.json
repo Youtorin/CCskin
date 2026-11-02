@@ -1,0 +1,51 @@
+{
+  "version": "1.3.0",
+  "date": "2026-11-02",
+  "platform": "Windows x64",
+  "appVersion": "26.1027.6604.0",
+  "checks": {
+    "launcher": "Mocked production launcher: stale session, existing window, windowless wake, missing engine, foreign listener rejection, fresh start, transient HTTP failures, singleton PID handoff, single hidden watcher, first launch exits early. Also recovers a live debugging endpoint that fails to reopen a window.",
+    "engine": "Installed and fresh theme readiness; image gate; ready signalled in the installation cycle; video deferred past first installation.",
+    "lifecycle": "Ancestry includes helpers lacking a profile argument; excludes unrelated processes and stale parent links; revalidates executable and creation time before stopping.",
+    "splash": {
+      "monitors": 2,
+      "resolutionEach": [
+        1920,
+        1080
+      ],
+      "actualNativeBoundsMatch": true,
+      "naturalVideoEnd": true,
+      "elapsedMs": 8518,
+      "closeAfterVideoMs": 20.5776,
+      "themeReady": false
+    },
+    "isolatedClient": {
+      "runs": 3,
+      "latestStartedMs": 12306,
+      "latestCleanupMs": 2492,
+      "latestTrackedProcesses": 11,
+      "remainingProcesses": 0,
+      "debugListenerReleased": true,
+      "profile": "Empty test profile, no login credentials copied",
+      "reopenAfterExit": true,
+      "repeatedLaunchPreservesRootAndEngine": true,
+      "explicitRestoreReleasesPort": true
+    },
+    "liveSidebar": {
+      "scrollViewportAboveFooter": true,
+      "canReachEnd": true,
+      "lastVisibleEntryReceivesPointer": true,
+      "reservedHeight": 52,
+      "globalOverlayRemoved": true,
+      "nativeAccountMenuHitTest": true,
+      "nativeAccountMenuVisuallyChecked": true
+    }
+  },
+  "limitations": [
+    "Logged-in primary client was not closed to test a complete cold start; current chat remained open.",
+    "Mixed-DPI, negative-origin and non-horizontal monitor arrangements have not been tested on physical hardware.",
+    "Timing-sensitive startup paths are reproduced with fault injection; no claim that every OS or client-version race is covered.",
+    "Video exits immediately even if the client is still loading; the original native loading surface may then be visible.",
+    "Previously reported maximization jitter remains outside this change."
+  ]
+}

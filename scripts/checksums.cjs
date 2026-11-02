@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '..');
-const excluded = new Set(['.git', 'node_modules', 'dist', 'work', 'outputs', 'profile']);
+const excluded = new Set(['.git', '.idea', 'node_modules', 'dist', 'work', 'outputs', 'profile']);
 function walk(dir) {
   return fs.readdirSync(path.join(root, dir), {withFileTypes: true}).flatMap(entry => {
     if (excluded.has(entry.name) || entry.name === 'SHA256SUMS.txt') return [];

@@ -2,6 +2,11 @@ html[data-cc-theme]{--color-token-bg-primary:var(--cc-bg);--color-token-bg-secon
 html[data-cc-theme=light]{--cc-bg:#faf9fd;--cc-side:#f0edf5;--cc-ink:#302c40;--cc-muted:#827b92;--cc-accent:#8b71b6;--cc-line:#a38cbd30;--cc-panel:255,255,255;--cc-shade:250,249,253}
 html[data-cc-theme=night]{--cc-bg:#211c2b;--cc-side:#272132;--cc-ink:#eee8f5;--cc-muted:#b4a6c6;--cc-accent:#b69ad8;--cc-line:#bca2d830;--cc-panel:40,33,53;--cc-shade:33,28,43}
 html[data-cc-theme] .app-shell-left-panel,html[data-cc-theme] .app-shell-left-panel nav{background:var(--cc-side)!important}
+/* Reserve real space below the scroll viewport. Menus retain their native stacking order. */
+html[data-cc-theme] [data-cc-account-area]{padding-bottom:52px!important;box-sizing:border-box}
+#cc-account-footer{display:none}
+html[data-cc-theme] #cc-account-footer{position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;left:0;right:0;bottom:0;height:52px;padding:6px 12px;border:0;border-top:1px solid var(--cc-line);background:var(--cc-side);color:var(--cc-ink);font:12px/1.4 'Segoe UI','Microsoft YaHei',sans-serif;text-align:left;pointer-events:none}
+html[data-cc-theme] #cc-account-footer small{display:block;margin-top:3px;color:var(--cc-muted);font-size:10px}
 html[data-cc-theme] [data-cc-surface] [class*="_WorkspaceContent_"],html[data-cc-theme] [data-cc-surface] [role=main],html[data-cc-theme] [data-cc-surface] [class~="bg-surface-primary"],html[data-cc-theme] [data-cc-surface] [class~="bg-token-bg-primary"],html[data-cc-theme] [data-cc-surface] [class~="bg-composer-primary"]{background:transparent!important}
 html[data-cc-theme] [data-composer-surface-variant]{background:rgba(var(--cc-panel),var(--cc-panel-alpha,.18))!important;border:1px solid var(--cc-line)!important;border-radius:18px!important;box-shadow:0 7px 32px #60437a0a!important;backdrop-filter:none!important;transition:border-color .25s,box-shadow .25s}
 html[data-cc-theme] [data-composer-surface-variant]:focus-within{border-color:#ad91ce99!important;box-shadow:0 0 0 2px #b49dd91a,0 0 26px #a28ac127!important}

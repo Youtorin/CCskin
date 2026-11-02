@@ -1,6 +1,6 @@
 (function installMoonlight(payload) {
   'use strict';
-  const VERSION='1.1.0', KEY='cc-moonlight-prefs-v1';
+  const VERSION='1.3.0', KEY='cc-moonlight-prefs-v1';
   if(window.__ccMoonlight?.version===VERSION&&window.__ccMoonlight.status().installed)return window.__ccMoonlight.status();
   window.__ccMoonlight?.destroy();
   const root=document.documentElement, reduced=matchMedia('(prefers-reduced-motion: reduce)'), dark=matchMedia('(prefers-color-scheme: dark)');
@@ -18,7 +18,7 @@
   shadow.innerHTML=`<style>
   :host{font-family:'Segoe UI','Microsoft YaHei',sans-serif;color:var(--cc-ink,#302c40);font-size:13px}*{box-sizing:border-box}[hidden]{display:none!important}button,input{font:inherit}button{cursor:pointer;border:1px solid var(--cc-line,#bba7cf55);color:inherit;background:rgba(var(--cc-panel,255,255,255),.93);border-radius:10px;padding:8px 12px}button:hover{box-shadow:0 0 20px #b494d435}button:focus-visible,input:focus-visible{outline:2px solid #a583ce;outline-offset:3px}
   #atmosphere{position:fixed;pointer-events:none;overflow:hidden;contain:strict}#stars{width:100%;height:100%;position:absolute;inset:0}.aurora{position:absolute;width:85%;height:65%;right:-20%;top:-10%;border-radius:50%;background:conic-gradient(from 30deg,transparent,#b395e23d,#b6dbe942,transparent,#ddc4f538,transparent);filter:blur(60px);animation:aurora 18s ease-in-out infinite alternate}.seal{position:absolute;width:min(45vw,620px);aspect-ratio:1;right:4%;top:10%;border:1px solid #b198d64d;border-radius:50%;animation:orbit 70s linear infinite}.seal:before{content:'';position:absolute;inset:7%;border:1px dashed #b198d64d;border-radius:50%}.seal:after{content:'✧';position:absolute;inset:19%;border:1px solid #b198d63d;transform:rotate(45deg);color:#b198d6;font-size:24px}.pointer{position:absolute;width:200px;height:200px;border-radius:50%;background:radial-gradient(#c1a4e32b,transparent 65%);transform:translate(-50%,-50%);opacity:0}
-  #account-label{position:fixed;white-space:nowrap;font-size:12px;color:var(--cc-ink);pointer-events:none;line-height:1.4}#account-label small{display:block;font-size:10px;margin-top:3px}#toolbar{visibility:var(--cc-toolbar-visibility,visible);position:fixed;left:360px;top:60px;bottom:auto;display:flex;gap:5px;pointer-events:auto}#toolbar button{box-shadow:0 4px 20px #3e28561a;font-size:12px}#open{letter-spacing:.04em}
+  #toolbar{visibility:var(--cc-toolbar-visibility,visible);position:fixed;left:360px;top:60px;bottom:auto;display:flex;gap:5px;pointer-events:auto}#toolbar button{box-shadow:0 4px 20px #3e28561a;font-size:12px}#open{letter-spacing:.04em}
   dialog{pointer-events:auto;position:fixed;margin:0;left:auto;right:20px;top:60px;max-height:calc(100dvh - 85px);width:340px;max-width:calc(100vw - 32px);overflow:auto;border:1px solid var(--cc-line,#bba7cf55);border-radius:20px;padding:22px;background:var(--cc-bg,#faf9fd);color:inherit;box-shadow:0 20px 80px #21132d40}dialog::backdrop{background:#251c3c29;backdrop-filter:blur(3px)}header{display:flex;align-items:center;justify-content:space-between;gap:8px}h2{font-size:17px;font-weight:600;margin:0}small{color:var(--cc-muted,#827b92);line-height:1.6}label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px}input[type=range]{width:100%;accent-color:#9673bd;margin-top:12px}input[type=checkbox]{accent-color:#9673bd;width:17px;height:17px}.choices{display:flex;gap:6px;margin-top:12px}.choices button{flex:1}.choices button[aria-pressed=true]{background:#a383cc24;border-color:#a383cc}.actions{display:flex;gap:8px;margin-top:22px;flex-wrap:wrap}.note{display:block;margin-top:15px}#pet{position:fixed;width:84px;height:100px;padding:0;border:0;background:none;pointer-events:auto;filter:drop-shadow(0 5px 10px #6c4d8c26);animation:breathe 5s ease-in-out infinite}#pet img{width:100%;height:100%;object-fit:contain}#pet-tip{position:fixed;max-width:190px;padding:10px 14px;border:1px solid var(--cc-line);background:var(--cc-bg,#faf9fd);color:inherit;border-radius:12px;font-size:12px;pointer-events:none}
   #intro{position:fixed;inset:0;background:#17121df5;pointer-events:auto;display:grid;place-items:center;z-index:4}video{width:min(100vw,1500px);max-height:100vh;object-fit:contain}#skip{position:absolute;right:30px;bottom:30px}#intro-note{position:absolute;top:25px;left:30px;color:#f3eafa;font-size:12px}#intro-error{position:absolute;color:white;text-align:center;top:45%;left:20%;right:20%}
   @keyframes aurora{to{transform:translate(-12%,18%) rotate(40deg) scale(1.1)}}@keyframes orbit{to{transform:rotate(360deg)}}@keyframes breathe{50%{transform:translateY(-4px)}}
@@ -27,10 +27,9 @@
   @media(prefers-reduced-motion:reduce){*{animation:none!important}#atmosphere{display:none}}
   </style>
   <div id="atmosphere" aria-hidden="true"><div class="aurora"></div><div class="seal"></div><div class="pointer"></div><canvas id="stars"></canvas></div>
-  <div id="account-label" hidden>主人的工作台<small>Personal space</small></div>
   <div id="toolbar"><button id="open" title="月白龙语外观设置">✧ 月白龙语</button><button id="focus" aria-label="切换专注模式" aria-pressed="false">专注</button></div>
   <button id="pet" aria-label="小龙互动"><span id="pet-sprite" role="img" aria-label="ChatGPT 银白龙裔动画"></span></button><div id="pet-tip" role="status" hidden></div>
-  <dialog id="settings" aria-label="月白龙语外观设置"><header><h2>月白龙语 · 星辉</h2><button id="close" aria-label="关闭设置">×</button></header><small>原生界面主题扩展 · 1.1.0</small>
+  <dialog id="settings" aria-label="月白龙语外观设置"><header><h2>月白龙语 · 星辉</h2><button id="close" aria-label="关闭设置">×</button></header><small>原生界面主题扩展 · ${VERSION}</small>
   <label>配色</label><div class="choices" id="themes"><button data-theme="light">月白</button><button data-theme="night">暮紫</button><button data-theme="system">系统</button></div>
   <label>氛围动效</label><div class="choices" id="effects"><button data-effect="off">静谧</button><button data-effect="soft">轻盈</button><button data-effect="luxe">华丽</button></div>
   <label for="alpha">面板透明度 <output id="alpha-value"></output></label><input id="alpha" type="range" min="0" max="100" value="82">
@@ -53,6 +52,17 @@
   }
   function petAction(row){if(reduced.matches||prefs.effects==='off'||paused)return;spriteRow=row;spriteUntil=performance.now()+1600;spriteFrame=0;spriteTick();}
   function on(target,event,fn,options){target.addEventListener(event,fn,options);cleanups.push(()=>target.removeEventListener(event,fn,options));}
+  const accountFooter=document.createElement('div');accountFooter.id='cc-account-footer';
+  accountFooter.innerHTML='<span>主人的工作台</span><small>Personal space</small>';
+  let accountArea=null;
+  function syncAccountFooter(){
+    const panel=document.querySelector('.app-shell-left-panel');
+    const area=panel?.querySelector('.sidebar-navigation');
+    const account=panel?.querySelector('nav button[aria-label="打开个人资料菜单"],nav button[aria-label="Open profile menu"]');
+    const usable=!paused&&area&&account&&area.getBoundingClientRect().width>=150&&account.getBoundingClientRect().width>0;
+    if(accountArea!==area||!usable){accountArea?.removeAttribute('data-cc-account-area');accountFooter.remove();accountArea=null;}
+    if(usable){accountArea=area;area.setAttribute('data-cc-account-area','');if(accountFooter.parentElement!==area)area.append(accountFooter);}
+  }
   function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs));}catch{}}
   function effectiveTheme(){return prefs.theme==='system'?(dark.matches?'night':'light'):prefs.theme;}
   function moving(){return !!main&&!settling&&!paused&&!destroyed&&!document.hidden&&!reduced.matches&&!prefs.focus&&prefs.effects!=='off'&&$('intro').hidden;}
@@ -64,6 +74,7 @@
   }
   function scheduleMeasure(){if(destroyed)return;if(document.hidden){measure();return;}if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;measure();});}
   function measure(){
+    syncAccountFooter();
     if(!main)return;const r=main.getBoundingClientRect();if(r.width<1||r.height<1)return;
     const old=rect;rect={left:r.left,top:r.top,width:r.width,height:r.height};
     const size=[Math.round(r.width),Math.round(r.height),devicePixelRatio].join(':');
@@ -83,10 +94,6 @@
       particles.length=count;
     }
     if(!settling)paintRect={width:r.width,height:r.height};
-    const panel=document.querySelector('.app-shell-left-panel'),account=panel?.querySelector('button[aria-label="打开个人资料菜单"],button[aria-label="Open profile menu"]');
-    const ar=account?.getBoundingClientRect(),pr=panel?.getBoundingClientRect();
-    $('account-label').hidden=paused||!ar?.width||!pr||pr.right-ar.right<150;
-    if(ar?.width)Object.assign($('account-label').style,{left:(ar.right+12)+'px',top:(ar.top+1)+'px',maxWidth:Math.max(0,pr.right-ar.right-24)+'px'});
     const left=Math.max(r.left,r.right-105),top=Math.max(r.top+60,r.bottom-170);Object.assign($('pet').style,{left:left+'px',top:top+'px'});Object.assign($('pet-tip').style,{right:Math.max(16,innerWidth-r.right+24)+'px',top:Math.max(r.top,top-52)+'px'});
   }
   const resize=new ResizeObserver(scheduleMeasure);
@@ -119,12 +126,12 @@
   on($('pet'),'click',e=>{petAction(4);emit(e.clientX-rect.left,e.clientY-rect.top,32,70);$('pet-tip').textContent='小龙陪伴已就绪';$('pet-tip').hidden=false;clearTimeout(petTimer);petTimer=setTimeout(()=>$('pet-tip').hidden=true,2400);});
   let pendingIntro=false,introTimer=0,previousFocus=null,inertElements=[];
   function finishIntro(){clearTimeout(introTimer);video.pause();$('intro').hidden=true;for(const [el,old]of inertElements)if(el.isConnected)el.inert=old;inertElements=[];previousFocus?.focus?.();apply();}
-  function playIntro(){if(reduced.matches)return;if(document.hidden){pendingIntro=true;return;}pendingIntro=false;dialog.close();previousFocus=document.activeElement;inertElements=[...document.body.children].filter(e=>e!==host&&e.tagName!=='SCRIPT'&&e.tagName!=='STYLE').map(e=>[e,e.inert]);for(const [el]of inertElements)el.inert=true;$('intro').hidden=false;$('intro-error').hidden=true;video.src=payload.assets.video;video.currentTime=0;$('skip').focus();apply();video.muted=true;video.play().catch(error=>{video.dataset.playError=error.message;$('intro-error').hidden=false;});introTimer=setTimeout(finishIntro,15000);}
+  function playIntro(){if(reduced.matches)return;if(document.hidden){pendingIntro=true;return;}pendingIntro=false;dialog.close();previousFocus=document.activeElement;inertElements=[...document.body.children].filter(e=>e!==host&&e.tagName!=='SCRIPT'&&e.tagName!=='STYLE').map(e=>[e,e.inert]);for(const [el]of inertElements)el.inert=true;$('intro').hidden=false;$('intro-error').hidden=true;if(payload.assets.video)video.src=payload.assets.video;video.currentTime=0;$('skip').focus();apply();video.muted=true;video.play().catch(error=>{video.dataset.playError=error.message;$('intro-error').hidden=false;});introTimer=setTimeout(finishIntro,15000);}
   on($('retry-video'),'click',()=>{video.play().then(()=>$('intro-error').hidden=true).catch(()=>{});});on($('skip'),'click',finishIntro);on(video,'ended',finishIntro);on(video,'error',()=>$('intro-error').hidden=false);on($('replay'),'click',playIntro);on(shadow,'keydown',e=>{if(!$('intro').hidden){if(e.key==='Escape'||e.key==='Enter'||e.key===' '){e.preventDefault();finishIntro();}else if(e.key==='Tab'){e.preventDefault();$('skip').focus();}}});
   on(document,'visibilitychange',()=>{if(pendingIntro&&!document.hidden)playIntro();host.dataset.motion=String(moving());syncAnimation();});on(reduced,'change',apply);on(dark,'change',apply);on(window,'resize',scheduleMeasure);
-  function destroy(){if(destroyed)return;if(!$('intro').hidden)finishIntro();destroyed=true;clearTimeout(spriteTimer);clearInterval(layoutPoll);cancelAnimationFrame(frame);cancelAnimationFrame(measureFrame);clearTimeout(settleTimer);delete root.dataset.ccResizing;clearTimeout(scanTimer);clearTimeout(petTimer);clearTimeout(introTimer);observer.disconnect();resize.disconnect();cleanups.forEach(fn=>fn());main?.removeAttribute('data-cc-surface');for(const node of codeNodes)node.removeAttribute('data-cc-code');for(const key of ['ccTheme','ccFocus','ccArt','ccView'])delete root.dataset[key];for(const key of ['--cc-panel-alpha','--cc-home-image','--cc-chat-image'])root.style.removeProperty(key);wallpaper.remove();style.remove();host.remove();delete window.__ccMoonlight;}
-  function status(){return {version:VERSION,installed:host.isConnected&&style.isConnected,paused,view:currentView,main:!!main,editor:!!main?.querySelector('[contenteditable="true"]'),effects:prefs.effects,theme:effectiveTheme(),intro:!$('intro').hidden,canvasResizes};}
-  window.__ccMoonlight={version:VERSION,status,destroy,suspend,resume,configure(values){for(const key of Object.keys(defaults))if(Object.hasOwn(values,key))prefs[key]=values[key];apply();return status();},playIntro,finishIntro};
+  function destroy(){if(destroyed)return;if(!$('intro').hidden)finishIntro();destroyed=true;clearTimeout(spriteTimer);clearInterval(layoutPoll);cancelAnimationFrame(frame);cancelAnimationFrame(measureFrame);clearTimeout(settleTimer);delete root.dataset.ccResizing;clearTimeout(scanTimer);clearTimeout(petTimer);clearTimeout(introTimer);observer.disconnect();resize.disconnect();cleanups.forEach(fn=>fn());main?.removeAttribute('data-cc-surface');for(const node of codeNodes)node.removeAttribute('data-cc-code');for(const key of ['ccTheme','ccFocus','ccArt','ccView'])delete root.dataset[key];for(const key of ['--cc-panel-alpha','--cc-home-image','--cc-chat-image'])root.style.removeProperty(key);accountArea?.removeAttribute("data-cc-account-area");accountFooter.remove();wallpaper.remove();style.remove();host.remove();delete window.__ccMoonlight;}
+  function status(){return {version:VERSION,videoReady:!!payload.assets.video,installed:host.isConnected&&style.isConnected,paused,view:currentView,main:!!main,editor:!!main?.querySelector('[contenteditable="true"]'),effects:prefs.effects,theme:effectiveTheme(),intro:!$('intro').hidden,canvasResizes};}
+  window.__ccMoonlight={version:VERSION,setVideo(data){payload.assets.video=data;if(!$('intro').hidden){video.src=data;video.play().then(()=>$('intro-error').hidden=true).catch(()=>{});}},status,destroy,suspend,resume,configure(values){for(const key of Object.keys(defaults))if(Object.hasOwn(values,key))prefs[key]=values[key];apply();return status();},playIntro,finishIntro};
   on($('pause'),'click',suspend);
   scan();apply();spriteTick();
   if(payload.playIntro&&prefs.intro&&!reduced.matches)setTimeout(()=>{if(!destroyed)playIntro();},400);

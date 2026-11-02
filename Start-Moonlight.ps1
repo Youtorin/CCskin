@@ -2,7 +2,9 @@
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'lib\launcher.ps1')
 $mutex=[Threading.Mutex]::new($false,'Local\CCMoonlight-Launcher')
-if(-not $mutex.WaitOne(0)){$mutex.Dispose();Write-Output 'Moonlight is already starting. Please wait for its window.';return}
+$locked=$false
+try{$locked=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$locked=$true}
+if(-not $locked){$mutex.Dispose();Write-Output 'Moonlight is starting; this request has joined the existing launch.';return}
 try{
  $node=(Get-Command node.exe -ErrorAction Stop).Source
  $nodeMajor=[int]((& $node -p 'process.versions.node.split(String.fromCharCode(46))[0]') | Select-Object -Last 1)
@@ -45,27 +47,77 @@ try{
   while(-not (Test-Path -LiteralPath (Join-Path $handshake 'visible')) -and -not $splash.HasExited -and [DateTime]::UtcNow -lt $splashDeadline){Start-Sleep -Milliseconds 100}
   if(-not (Test-Path -LiteralPath (Join-Path $handshake 'visible'))){
    [IO.File]::WriteAllText((Join-Path $handshake 'failed'),'Splash did not become ready')
-   throw "Startup video window failed to open. See $handshake. Run with -NoIntro to bypass it."
+   Write-Warning "Startup video unavailable; continuing to the application. See $handshake."
   }
  }
  $appArgs=@('--remote-debugging-address=127.0.0.1',"--remote-debugging-port=$port",('--user-data-dir="'+$profile+'"'),'--no-first-run')
+ $needsWindow=$false
  if(-not $reuse){$launched=Start-Process -FilePath $exe -ArgumentList $appArgs -WindowStyle Normal -PassThru}
- $state=[ordered]@{schema=1;version=$package.Version.ToString();executable=$exe;profile=$profile;port=$port;pid=$launched.Id;createdUtc=$launched.StartTime.ToUniversalTime().ToString('o');enginePath=(Join-Path $PSScriptRoot 'engine.cjs');node=$node;enginePid=$null;browserSocket=$null}
+ elseif(-not (Show-MoonlightWindow $launched.Id)){
+  $needsWindow=$true
+  # Wake the profile singleton before waiting for its endpoint.
+  Start-Process -FilePath $exe -ArgumentList $appArgs -WindowStyle Normal | Out-Null
+ }
+ # A forwarding process can exit before StartTime is queried. Endpoint verification replaces this provisional timestamp.
+ $createdUtc=[DateTime]::UtcNow.ToString('o');try{$createdUtc=$launched.StartTime.ToUniversalTime().ToString('o')}catch{}
+ $state=[ordered]@{schema=1;version=$package.Version.ToString();executable=$exe;profile=$profile;port=$port;pid=$launched.Id;createdUtc=$createdUtc;enginePath=(Join-Path $PSScriptRoot 'engine.cjs');node=$node;enginePid=$null;browserSocket=$null}
  if($handshake){$state | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $handshake 'launch.json') -Encoding utf8}
  try{
-  $deadline=[DateTime]::UtcNow.AddSeconds(45)
+  $deadline=[DateTime]::UtcNow.AddSeconds(60)
+  $restarted=$false;$lastEndpointError='';$probeStarted=[DateTime]::UtcNow
   do{
    $listeners=@(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
    if($listeners.Count){
     foreach($listener in $listeners){
-     if($listener.LocalAddress -ne '127.0.0.1' -or $listener.OwningProcess -ne $launched.Id){throw 'Debugging listener identity is not trusted.'}
+     if($listener.LocalAddress -ne '127.0.0.1'){throw 'Debugging listener identity is not trusted.'}
+     if($listener.OwningProcess -ne $launched.Id){
+      $owner=Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)" -ErrorAction SilentlyContinue
+      if(@(Find-MoonlightRoot @($owner) $exe $profile).Count -ne 1){throw 'Debugging listener identity is not trusted.'}
+      # Chromium can forward launch to a different root. Bind to the verified listener owner.
+      $launched=Get-Process -Id $owner.ProcessId
+      $state.pid=$launched.Id;$state.createdUtc=$launched.StartTime.ToUniversalTime().ToString('o')
+      if($handshake){Write-MoonlightState $state (Join-Path $handshake 'launch.json')}
+     }
     }
-    $version=Invoke-RestMethod "http://127.0.0.1:$port/json/version" -TimeoutSec 2
-    if($version.webSocketDebuggerUrl -match "^ws://127\.0\.0\.1:$port/devtools/browser/[\w-]+$"){$state.browserSocket=$version.webSocketDebuggerUrl;break}
+    $version=$null
+    try{$version=Invoke-RestMethod "http://127.0.0.1:$port/json/version" -TimeoutSec 2}catch{$lastEndpointError=$_.Exception.Message}
+    if($version.webSocketDebuggerUrl -match "^ws://127\.0\.0\.1:$port/devtools/browser/[\w-]+$"){
+     $live=Get-Process -Id $launched.Id -ErrorAction SilentlyContinue
+     if($live){
+      if($needsWindow -and -not (Test-MoonlightWindow $launched.Id)){
+       if(([DateTime]::UtcNow-$probeStarted).TotalSeconds -lt 4){Start-Sleep -Milliseconds 150;continue}
+       # A healthy debug port is not proof that the tray singleton reopened a window.
+       $owner=Get-CimInstance Win32_Process -Filter "ProcessId=$($launched.Id)" -ErrorAction SilentlyContinue
+       if(@(Find-MoonlightRoot @($owner) $exe $profile).Count -ne 1){throw 'Windowless application identity changed.'}
+       if(Test-MoonlightWindow $owner.ProcessId){continue}
+       Stop-MoonlightTree @(Get-MoonlightTree @(Get-CimInstance Win32_Process) $owner)
+       $launched=Start-Process -FilePath $exe -ArgumentList $appArgs -WindowStyle Normal -PassThru
+       $reuse=$false;$restarted=$true;$needsWindow=$false;$state.pid=$launched.Id
+       continue
+      }
+      $state.createdUtc=$live.StartTime.ToUniversalTime().ToString('o');$state.browserSocket=$version.webSocketDebuggerUrl;break
+     }
+    }
    }
-   Start-Sleep -Milliseconds 400
+   $live=Get-Process -Id $launched.Id -ErrorAction SilentlyContinue
+   if(-not $restarted -and (-not $live -or (([DateTime]::UtcNow-$probeStarted).TotalSeconds -gt 8 -and -not (Test-MoonlightWindow $launched.Id)))){
+    $roots=@(Find-MoonlightRoot @(Get-CimInstance Win32_Process -Filter "Name='ChatGPT.exe'") $exe $profile)
+    if($roots.Count -eq 1 -and $roots[0].ProcessId -ne $launched.Id){$launched=Get-Process -Id $roots[0].ProcessId}
+    else{
+     if($roots.Count -eq 1){
+      if(Test-MoonlightWindow $roots[0].ProcessId){continue}
+      $tree=@(Get-MoonlightTree @(Get-CimInstance Win32_Process) $roots[0]);Stop-MoonlightTree $tree
+     }elseif($roots.Count -gt 1){throw 'Multiple themed root processes found during startup.'}
+     $launched=Start-Process -FilePath $exe -ArgumentList $appArgs -WindowStyle Normal -PassThru
+     $reuse=$false;$restarted=$true
+    }
+    $state.pid=$launched.Id;$state.createdUtc=$launched.StartTime.ToUniversalTime().ToString('o')
+    if($handshake){Write-MoonlightState $state (Join-Path $handshake 'launch.json')}
+   }
+   Start-Sleep -Milliseconds 150
   }while([DateTime]::UtcNow -lt $deadline)
-  if(-not $state.browserSocket){throw 'The application did not expose a verified debugging endpoint.'}
+  if(-not $state.browserSocket){throw "The application did not expose a verified debugging endpoint within 60 seconds. $lastEndpointError"}
+  if($handshake){Write-MoonlightState $state (Join-Path $handshake 'launch.json')}
   $engineCommand='(?:^|\s)"?'+[regex]::Escape($state.enginePath)+'"?(?=\s|$)'
   $sessionCommand='(?:^|\s)--session\s+"?'+[regex]::Escape($statePath)+'"?(?=\s|$)'
   $engines=@(Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object {$_.ExecutablePath -eq $node -and $_.CommandLine -match $engineCommand -and $_.CommandLine -match $sessionCommand -and $_.CommandLine -notmatch '(?:^|\s)--(?:restore|close|once)(?:\s|$)'})
@@ -79,28 +131,30 @@ try{
    $state.enginePid=$engines[0].ProcessId
    $state.engineCreatedUtc=$engines[0].CreationDate.ToUniversalTime().ToString('o')
   }
-  $state | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+  Write-MoonlightState $state $statePath
   if(-not $engines.Count){
    $engineArgs=@(('"'+$state.enginePath+'"'),'--session',('"'+$statePath+'"'))
    $engineArgs+='--no-intro'
    if($handshake){$engineArgs+=@('--ready-file',('"'+(Join-Path $handshake 'theme-ready')+'"'))}
    $engine=Start-Process -FilePath $node -ArgumentList $engineArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $StateDirectory 'engine.log') -RedirectStandardError (Join-Path $StateDirectory 'engine-error.log')
    $state.enginePid=$engine.Id;$state.engineCreatedUtc=$engine.StartTime.ToUniversalTime().ToString('o')
-   $state | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+   Write-MoonlightState $state $statePath
+  }
+  $watcherPath=Join-Path $PSScriptRoot 'Watch-Moonlight.ps1'
+  $watchers=@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+   $_.CommandLine -and $_.CommandLine.Contains(('"'+$watcherPath+'"')) -and $_.CommandLine.Contains(('"'+$statePath+'"')) -and
+   $_.CommandLine -match ('-RootPid\s+'+$state.pid+'(?:\s|$)')
+  })
+  if(-not $watchers.Count){
+   $watchArgs=@('-NoProfile','-ExecutionPolicy','RemoteSigned','-File',('"'+$watcherPath+'"'),'-SessionPath',('"'+$statePath+'"'),'-RootPid',$state.pid)
+   Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList $watchArgs -WindowStyle Hidden -RedirectStandardError (Join-Path $StateDirectory 'watcher-error.log') | Out-Null
   }
   if($reuse){
-   if(-not (Show-MoonlightWindow $launched.Id)){
-    # Request a window through Chromium's existing profile singleton when only its background process remains.
-    Start-Process -FilePath $exe -ArgumentList $appArgs -WindowStyle Normal | Out-Null
-   }
    Write-Output 'Reused the running Moonlight instance and requested its window.'
   }else{Write-Output "Moonlight started. Session: $statePath"}
  }catch{
   if($handshake){[IO.File]::WriteAllText((Join-Path $handshake 'failed'),$_.Exception.Message)}
-  if(-not $reuse){
-   $p=Get-CimInstance Win32_Process -Filter "ProcessId=$($launched.Id)" -ErrorAction SilentlyContinue
-   if($p -and $p.ExecutablePath -eq $exe -and $p.CommandLine -and (Get-MoonlightArgument $p.CommandLine 'user-data-dir') -eq $profile -and [Math]::Abs(($p.CreationDate.ToUniversalTime()-$launched.StartTime.ToUniversalTime()).TotalSeconds) -lt 1){Stop-Process -Id $p.ProcessId -ErrorAction SilentlyContinue}
-  }
+  # A transient launch failure must not destroy a client which is still loading.
   throw
  }
 }catch{

@@ -1,69 +1,87 @@
 ﻿param([Parameter(Mandatory=$true)][string]$HandshakeDirectory,[Parameter(Mandatory=$true)][string]$VideoPath)
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'lib\launcher.ps1')
+Initialize-MoonlightNative
+# Native monitor rectangles and SetWindowPos use physical pixels, including negative origins.
+$null=[CCMoonlight.Native]::SetThreadDpiAwarenessContext([IntPtr]::new(-4))
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
-. (Join-Path $PSScriptRoot 'lib\launcher.ps1')
-# A separate startup surface covers the native loading window until the theme is ready.
-$window=New-Object Windows.Window
-$window.Title='CC Moonlight startup'
-$window.WindowStyle='None';$window.ResizeMode='NoResize';$window.Topmost=$true
-$window.ShowInTaskbar=$false
-$window.Left=[Windows.SystemParameters]::VirtualScreenLeft
-$window.Top=[Windows.SystemParameters]::VirtualScreenTop
-$window.Width=[Windows.SystemParameters]::VirtualScreenWidth
-$window.Height=[Windows.SystemParameters]::VirtualScreenHeight
-$window.Background=[Windows.Media.Brushes]::Black
-$grid=New-Object Windows.Controls.Grid
-$video=New-Object Windows.Controls.MediaElement
-$video.LoadedBehavior='Manual';$video.UnloadedBehavior='Close';$video.Stretch='Uniform';$video.IsMuted=$true
-$grid.Children.Add($video) | Out-Null
-$label=New-Object Windows.Controls.TextBlock
-$label.Text='月白龙语 · 正在准备工作台';$label.Foreground=[Windows.Media.Brushes]::White
-$label.HorizontalAlignment='Center';$label.VerticalAlignment='Bottom';$label.Margin='24';$label.FontSize=14
-$grid.Children.Add($label) | Out-Null
-$skip=New-Object Windows.Controls.Button
-$skip.Content='跳过动画';$skip.HorizontalAlignment='Right';$skip.VerticalAlignment='Bottom';$skip.Margin='24';$skip.Padding='16,8'
-$grid.Children.Add($skip) | Out-Null
-$window.Content=$grid
-$script:videoDone=$false;$script:handoffAt=$null;$script:started=[DateTime]::UtcNow
-function Complete-Video {[IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'video-done'),'done');$script:videoDone=$true;$skip.IsEnabled=$false;$label.Text='正在准备工作台…'}
-$skip.Add_Click({Complete-Video})
-$window.Add_KeyDown({if($_.Key -eq 'Escape'){Complete-Video}})
-$video.Add_MediaOpened({[IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'video-opened'),'ready')})
-$video.Add_MediaEnded({Complete-Video})
-$video.Add_MediaFailed({$label.Text='正在准备工作台…';Complete-Video})
-$window.Add_ContentRendered({
- [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'visible'),'ready')
- $video.Source=[Uri]::new($VideoPath);$video.Play()
+$app=New-Object Windows.Application
+$app.ShutdownMode='OnExplicitShutdown'
+$script:windows=@();$script:finished=$false
+$clock=[Diagnostics.Stopwatch]::StartNew()
+$player=New-Object Windows.Media.MediaPlayer
+$player.IsMuted=$true
+# One decoder and playback clock, rendered in full on every monitor.
+$drawing=New-Object Windows.Media.VideoDrawing
+$drawing.Player=$player;$drawing.Rect=New-Object Windows.Rect(0,0,2560,1440)
+$brush=New-Object Windows.Media.DrawingBrush($drawing)
+$brush.Stretch='Uniform'
+function Close-Intro([string]$Reason) {
+ if($script:finished){return};$script:finished=$true
+ $timer.Stop()
+ [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'video-done'),$Reason)
+ $ready=Test-Path -LiteralPath (Join-Path $HandshakeDirectory 'theme-ready')
+ # Never freeze on the last frame while waiting for the client.
+ foreach($w in $script:windows){$w.Hide()}
+ $player.Close()
+ $launchPath=Join-Path $HandshakeDirectory 'launch.json'
+ if(Test-Path -LiteralPath $launchPath){
+  try{
+   $launch=Get-Content -LiteralPath $launchPath -Raw | ConvertFrom-Json
+   $p=Get-Process -Id ([int]$launch.pid) -ErrorAction SilentlyContinue
+   if($p -and [Math]::Abs(($p.StartTime.ToUniversalTime()-([DateTime]$launch.createdUtc).ToUniversalTime()).TotalSeconds) -lt 1){[void](Show-MoonlightWindow $p.Id)}
+  }catch{}
+ }
+ [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'result.json'),(@{themeReady=$ready;reason=$Reason;elapsedMs=$clock.ElapsedMilliseconds;monitors=$script:windows.Count} | ConvertTo-Json))
+ foreach($w in $script:windows){$w.Close()}
+ [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'closed'),'closed')
+ $app.Shutdown()
+}
+foreach($screen in [CCMoonlight.Native]::Screens()){
+ $window=New-Object Windows.Window
+ $window.Title='CC Moonlight startup';$window.WindowStyle='None';$window.ResizeMode='NoResize'
+ $window.Topmost=$true;$window.ShowInTaskbar=$false;$window.ShowActivated=$false
+ $window.Background=[Windows.Media.Brushes]::Black
+ $window.Tag=$screen
+ $window.Add_SourceInitialized({param($sender,$eventArgs)
+  $handle=[Windows.Interop.WindowInteropHelper]::new($sender).Handle
+  [CCMoonlight.Native]::Place($handle,$sender.Tag)
+ })
+ $grid=New-Object Windows.Controls.Grid
+ $surface=New-Object Windows.Shapes.Rectangle;$surface.Fill=$brush
+ $null=$grid.Children.Add($surface)
+ $skip=New-Object Windows.Controls.Button
+ $skip.Content='跳过动画';$skip.HorizontalAlignment='Right';$skip.VerticalAlignment='Bottom';$skip.Margin='24';$skip.Padding='16,8'
+ $skip.Add_Click({Close-Intro 'skipped'});$null=$grid.Children.Add($skip)
+ $window.Content=$grid
+ $window.Add_KeyDown({if($_.Key -eq 'Escape'){Close-Intro 'skipped'}})
+ $window.Add_Closed({if(-not $script:finished){Close-Intro 'dismissed'}})
+ $script:windows+=$window
+}
+$player.Add_MediaOpened({
+ $drawing.Rect=New-Object Windows.Rect(0,0,$player.NaturalVideoWidth,$player.NaturalVideoHeight)
+ [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'video-opened'),'ready')
+ $player.Play()
 })
+$player.Add_MediaEnded({Close-Intro 'ended'})
+$player.Add_MediaFailed({Close-Intro 'media-failed'})
 $timer=New-Object Windows.Threading.DispatcherTimer
-$timer.Interval=[TimeSpan]::FromMilliseconds(100)
+$timer.Interval=[TimeSpan]::FromMilliseconds(50)
 $timer.Add_Tick({
  try{
-  $elapsed=([DateTime]::UtcNow-$script:started).TotalSeconds
-  if($elapsed -gt 15 -and -not $script:videoDone){Complete-Video}
-  $ready=Test-Path -LiteralPath (Join-Path $HandshakeDirectory 'theme-ready')
-  $failed=Test-Path -LiteralPath (Join-Path $HandshakeDirectory 'failed')
-  if(($ready -and $script:videoDone) -or $failed -or $elapsed -gt 65){
-   if(-not $script:handoffAt){
-    $launchPath=Join-Path $HandshakeDirectory 'launch.json'
-    if(Test-Path -LiteralPath $launchPath){
-     $launch=Get-Content -LiteralPath $launchPath -Raw | ConvertFrom-Json
-     $process=Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$launch.pid)" -ErrorAction SilentlyContinue
-     if($process -and $process.ExecutablePath -eq $launch.executable -and (Get-MoonlightArgument $process.CommandLine 'user-data-dir') -eq $launch.profile -and [Math]::Abs(($process.CreationDate.ToUniversalTime()-[DateTime]::Parse($launch.createdUtc).ToUniversalTime()).TotalSeconds) -lt 1){
-      [void](Show-MoonlightWindow $process.ProcessId)
-     }
-    }
-    $script:handoffAt=[DateTime]::UtcNow
-    [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'result.json'),(@{themeReady=$ready;failed=$failed;timedOut=($elapsed -gt 65)} | ConvertTo-Json))
-   }elseif(([DateTime]::UtcNow-$script:handoffAt).TotalMilliseconds -ge 350){$window.Close()}
-  }
+  if([CCMoonlight.Native]::EscapePressed()){Close-Intro 'skipped'}
+  elseif(Test-Path -LiteralPath (Join-Path $HandshakeDirectory 'failed')){Close-Intro 'launch-failed'}
+  elseif($clock.Elapsed.TotalSeconds -gt 15){Close-Intro 'media-timeout'}
  }catch{
   [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'splash-error.txt'),$_.Exception.Message)
-  $window.Close()
+  Close-Intro 'error'
  }
 })
-$window.Add_Closed({$timer.Stop();$video.Close();[IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'closed'),'closed')})
-$timer.Start()
-$window.ShowDialog() | Out-Null
+try{
+ foreach($w in $script:windows){$w.Show()}
+ [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'screens.json'),(ConvertTo-Json -Depth 4 -InputObject @($script:windows | ForEach-Object {@{expected=$_.Tag;actual=[CCMoonlight.Native]::Bounds([Windows.Interop.WindowInteropHelper]::new($_).Handle)}})))
+ [IO.File]::WriteAllText((Join-Path $HandshakeDirectory 'visible'),'ready')
+ $timer.Start();$player.Open([Uri]::new($VideoPath));$null=$app.Run()
+}finally{if(-not $script:finished){Close-Intro 'shutdown'}}
